@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 import torch
 import torch.distributed as dist
-import torch.multiprocessing as mp
 
 import tests.base.utils as tutils
 from pytorch_lightning.metrics.converters import _apply_to_inputs, _apply_to_outputs, \
@@ -10,12 +9,7 @@ from pytorch_lightning.metrics.converters import _apply_to_inputs, _apply_to_out
     _tensor_metric_conversion, _sync_ddp, tensor_metric, numpy_metric
 
 
-@pytest.mark.parametrize(['args', 'kwargs'],
-                         [pytest.param([], {}),
-                          pytest.param([1., 2.], {}),
-                          pytest.param([], {'a': 1., 'b': 2.}),
-                          pytest.param([1., 2.], {'a': 1., 'b': 2.})])
-def test_apply_to_inputs(args, kwargs):
+def test_apply_to_inputs():
     def apply_fn(inputs, factor):
         if isinstance(inputs, (float, int)):
             return inputs * factor
@@ -25,22 +19,24 @@ def test_apply_to_inputs(args, kwargs):
             return [apply_fn(x, factor) for x in inputs]
 
     @_apply_to_inputs(apply_fn, factor=2.)
-    def test_fn(*func_args, **func_kwargs):
-        return func_args, func_kwargs
+    def test_fn(*args, **kwargs):
+        return args, kwargs
 
-    result_args, result_kwargs = test_fn(*args, **kwargs)
-    assert isinstance(result_args, (list, tuple))
-    assert isinstance(result_kwargs, dict)
-    assert len(result_args) == len(args)
-    assert len(result_kwargs) == len(kwargs)
-    assert all([k in result_kwargs for k in kwargs.keys()])
-    for arg, result_arg in zip(args, result_args):
-        assert arg * 2. == result_arg
+    for args in [[], [1., 2.]]:
+        for kwargs in [{}, {'a': 1., 'b': 2.}]:
+            result_args, result_kwargs = test_fn(*args, **kwargs)
+            assert isinstance(result_args, (list, tuple))
+            assert isinstance(result_kwargs, dict)
+            assert len(result_args) == len(args)
+            assert len(result_kwargs) == len(kwargs)
+            assert all([k in result_kwargs for k in kwargs.keys()])
+            for arg, result_arg in zip(args, result_args):
+                assert arg * 2. == result_arg
 
-    for key in kwargs.keys():
-        arg = kwargs[key]
-        result_arg = result_kwargs[key]
-        assert arg * 2. == result_arg
+            for key in kwargs.keys():
+                arg = kwargs[key]
+                result_arg = result_kwargs[key]
+                assert arg * 2. == result_arg
 
 
 def test_apply_to_outputs():
@@ -100,17 +96,14 @@ def test_tensor_metric_conversion():
     assert result.item() == 5.
 
 
-def setup_ddp(rank, worldsize, ):
-    import os
+@pytest.mark.skipif(torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
+def test_sync_reduce_ddp():
+    """Make sure sync-reduce works with DDP"""
+    tutils.reset_seed()
+    tutils.set_random_master_port()
 
-    os.environ['MASTER_ADDR'] = 'localhost'
+    dist.init_process_group('gloo')
 
-    # initialize the process group
-    dist.init_process_group("gloo", rank=rank, world_size=worldsize)
-
-
-def ddp_test_fn(rank, worldsize):
-    setup_ddp(rank, worldsize)
     tensor = torch.tensor([1.], device='cuda:0')
 
     reduced_tensor = _sync_ddp(tensor)
@@ -118,15 +111,7 @@ def ddp_test_fn(rank, worldsize):
     assert reduced_tensor.item() == dist.get_world_size(), \
         'Sync-Reduce does not work properly with DDP and Tensors'
 
-
-@pytest.mark.skipif(torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
-def test_sync_reduce_ddp():
-    """Make sure sync-reduce works with DDP"""
-    tutils.reset_seed()
-    tutils.set_random_master_port()
-
-    worldsize = 2
-    mp.spawn(ddp_test_fn, args=(worldsize,), nprocs=worldsize)
+    dist.destroy_process_group()
 
 
 def test_sync_reduce_simple():
@@ -160,17 +145,14 @@ def _test_tensor_metric(is_ddp: bool):
     assert result.item() == 5. * factor
 
 
-def _ddp_test_tensor_metric(rank, worldsize):
-    setup_ddp(rank, worldsize)
-    _test_tensor_metric(True)
-
-
+@pytest.mark.skipif(torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
 def test_tensor_metric_ddp():
     tutils.reset_seed()
     tutils.set_random_master_port()
 
-    world_size = 2
-    mp.spawn(_ddp_test_tensor_metric, args=(world_size,), nprocs=world_size)
+    dist.init_process_group('gloo')
+    _test_tensor_metric(True)
+    dist.destroy_process_group()
 
 
 def test_tensor_metric_simple():
@@ -198,16 +180,14 @@ def _test_numpy_metric(is_ddp: bool):
     assert result.item() == 5. * factor
 
 
-def _ddp_test_numpy_metric(rank, worldsize):
-    setup_ddp(rank, worldsize)
-    _test_numpy_metric(True)
-
-
+@pytest.mark.skipif(torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
 def test_numpy_metric_ddp():
     tutils.reset_seed()
     tutils.set_random_master_port()
-    world_size = 2
-    mp.spawn(_ddp_test_numpy_metric, args=(world_size,), nprocs=world_size)
+
+    dist.init_process_group('gloo')
+    _test_tensor_metric(True)
+    dist.destroy_process_group()
 
 
 def test_numpy_metric_simple():
