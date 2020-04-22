@@ -17,6 +17,16 @@ import pytorch_lightning as pl
 from pytorch_lightning import _logger as log
 
 
+class LayerSummary:
+
+    def __init__(self, module):
+        self._module = module
+        self.type = None
+        self.in_size = None
+        self.out_size = None
+
+
+
 class ModelSummary(object):
 
     def __init__(self, model: 'pl.LightningModule', mode: str = 'full'):
@@ -26,6 +36,7 @@ class ModelSummary(object):
         self.in_sizes = []
         self.out_sizes = []
 
+        self.summary = dict()
         self.summarize()
 
     def __str__(self):
@@ -70,20 +81,21 @@ class ModelSummary(object):
                 input_ = input_.half()
 
         def forward_hook(module, inp, out):
-            if isinstance(inp, (list, tuple)):
+            print(module)
+            inp = inp[0]
+            if isinstance(inp, (list, tuple)):  # pragma: no-cover
                 in_size = []
                 for x in inp:
-                    if isinstance(x, list):
+                    if isinstance(x, (list, tuple)):
                         in_size.append(len(x))
                     else:
                         in_size.append(x.size())
             else:
-
                 in_size = np.array(inp.size())
 
             in_sizes.append(in_size)
 
-            if isinstance(out, (list, tuple)):
+            if isinstance(out, (list, tuple)):  # pragma: no-cover
                 out_size = np.asarray([x.size() for x in out])
             else:
                 out_size = np.array(out.size())
@@ -170,6 +182,10 @@ class ModelSummary(object):
         if self.model.example_input_array is not None:
             self.get_variable_sizes()
         self.make_summary()
+
+
+def collect_tensor_sizes(data):
+
 
 
 def _format_summary_table(*cols) -> str:
