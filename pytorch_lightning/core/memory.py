@@ -69,36 +69,47 @@ class ModelSummary(object):
             else:
                 input_ = input_.half()
 
+        def forward_hook(module, inp, out):
+            if isinstance(inp, (list, tuple)):
+                in_size = []
+                for x in inp:
+                    if isinstance(x, list):
+                        in_size.append(len(x))
+                    else:
+                        in_size.append(x.size())
+            else:
+
+                in_size = np.array(inp.size())
+
+            in_sizes.append(in_size)
+
+            if isinstance(out, (list, tuple)):
+                out_size = np.asarray([x.size() for x in out])
+            else:
+                out_size = np.array(out.size())
+
+            out_sizes.append(out_size)
+
+        remove_handles = []
+        for _, m in mods:
+            handle = m.register_forward_hook(forward_hook)
+            remove_handles.append(handle)
+
         with torch.no_grad():
+            if isinstance(input_, (list, tuple)):  # pragma: no-cover
+                self.model(*input_)
+            else:
+                self.model(input_)
 
-            for _, m in mods:
-                if isinstance(input_, (list, tuple)):  # pragma: no-cover
-                    out = m(*input_)
-                else:
-                    out = m(input_)
-
-                if isinstance(input_, (list, tuple)):  # pragma: no-cover
-                    in_size = []
-                    for x in input_:
-                        if isinstance(x, list):
-                            in_size.append(len(x))
-                        else:
-                            in_size.append(x.size())
-                else:
-                    in_size = np.array(input_.size())
-
-                in_sizes.append(in_size)
-
-                if isinstance(out, (list, tuple)):  # pragma: no-cover
-                    out_size = np.asarray([x.size() for x in out])
-                else:
-                    out_size = np.array(out.size())
-
-                out_sizes.append(out_size)
-                input_ = out
+        # remove all the hooks we installed
+        for handle in remove_handles:
+            handle.remove()
 
         self.in_sizes = in_sizes
         self.out_sizes = out_sizes
+
+        print(in_sizes)
+        print(out_sizes)
         assert len(in_sizes) == len(out_sizes)
 
     def get_layer_names(self) -> None:
