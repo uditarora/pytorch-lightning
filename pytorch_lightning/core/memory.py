@@ -5,6 +5,7 @@ Generates a summary of a model's layers and dimensionality
 import gc
 import os
 import subprocess
+from collections import namedtuple
 from subprocess import PIPE
 from typing import Tuple, Dict, Union, List
 
@@ -17,14 +18,18 @@ import pytorch_lightning as pl
 from pytorch_lightning import _logger as log
 
 
+# LayerSummary = namedtuple('LayerSummary', ['module', 'type', 'in_size', 'out_size'])
+
 class LayerSummary:
 
     def __init__(self, module):
         self._module = module
-        self.type = None
         self.in_size = None
         self.out_size = None
 
+    @property
+    def type(self):
+        return str(self._module.__class__).split('.')[-1][:-2]
 
 
 class ModelSummary(object):
@@ -33,10 +38,10 @@ class ModelSummary(object):
         """ Generates summaries of model layers and dimensions. """
         self.model = model
         self.mode = mode
-        self.in_sizes = []
-        self.out_sizes = []
+        # self.in_sizes = []
+        # self.out_sizes = []
 
-        self.summary = dict()
+        self._summary = self._init_layer_summary()
         self.summarize()
 
     def __str__(self):
@@ -124,19 +129,11 @@ class ModelSummary(object):
         print(out_sizes)
         assert len(in_sizes) == len(out_sizes)
 
-    def get_layer_names(self) -> None:
-        """ Collect Layer Names """
-        mods = self.named_modules()
-        names = []
-        layers = []
-        for name, m in mods:
-            names += [name]
-            layers += [str(m.__class__)]
-
-        layer_types = [x.split('.')[-1][:-2] for x in layers]
-
-        self.layer_names = names
-        self.layer_types = layer_types
+    def _init_layer_summary(self) -> dict:
+        summary = dict()
+        for name, module in self.named_modules():
+            summary.update({name: LayerSummary(module)})
+        return summary
 
     def get_parameter_sizes(self) -> None:
         """ Get sizes of all parameters in `model`. """
@@ -175,7 +172,6 @@ class ModelSummary(object):
         self.summary = _format_summary_table(*arrays)
 
     def summarize(self) -> None:
-        self.get_layer_names()
         self.get_parameter_sizes()
         self.get_parameter_nums()
 
@@ -184,8 +180,8 @@ class ModelSummary(object):
         self.make_summary()
 
 
-def collect_tensor_sizes(data):
-
+# def collect_tensor_sizes(data):
+#
 
 
 def _format_summary_table(*cols) -> str:
