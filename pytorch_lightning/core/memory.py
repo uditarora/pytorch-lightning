@@ -5,9 +5,9 @@ Generates a summary of a model's layers and dimensionality
 import gc
 import os
 import subprocess
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 from subprocess import PIPE
-from typing import Tuple, Dict, Union, List
+from typing import Tuple, Dict, Union, List, Any
 
 import numpy as np
 import torch
@@ -18,17 +18,27 @@ import pytorch_lightning as pl
 from pytorch_lightning import _logger as log
 
 
-# LayerSummary = namedtuple('LayerSummary', ['module', 'type', 'in_size', 'out_size'])
+class LayerSummary(Module):
 
-class LayerSummary:
-
-    def __init__(self, module):
+    def __init__(self, module: Module):
+        super().__init__()
         self._module = module
+        self._hook_handle = self._register_hook(module)
         self.in_size = None
         self.out_size = None
 
+    def _register_hook(self, module):
+        def hook(module, inp, out):
+            # print(module)
+            inp = inp[0]
+            print(module)
+            self.in_size = parse_batch_size(inp)
+            self.out_size = parse_batch_size(out)
+            self._hook_handle.remove()  # hook detaches itself from module
+        return self._module.register_forward_hook(hook)
+
     @property
-    def type(self):
+    def layer_type(self):
         return str(self._module.__class__).split('.')[-1][:-2]
 
 
@@ -40,6 +50,9 @@ class ModelSummary(object):
         self.mode = mode
         # self.in_sizes = []
         # self.out_sizes = []
+        #
+        # if model.trainer.use_amp and self.use_native_amp:
+        #     model.forward = torch.cuda.amp.autocast()(model.forward)
 
         self._summary = self._init_layer_summary()
         self.summarize()
@@ -85,55 +98,33 @@ class ModelSummary(object):
             else:
                 input_ = input_.half()
 
-        def forward_hook(module, inp, out):
-            print(module)
-            inp = inp[0]
-            if isinstance(inp, (list, tuple)):  # pragma: no-cover
-                in_size = []
-                for x in inp:
-                    if isinstance(x, (list, tuple)):
-                        in_size.append(len(x))
-                    else:
-                        in_size.append(x.size())
-            else:
-                in_size = np.array(inp.size())
-
-            in_sizes.append(in_size)
-
-            if isinstance(out, (list, tuple)):  # pragma: no-cover
-                out_size = np.asarray([x.size() for x in out])
-            else:
-                out_size = np.array(out.size())
-
-            out_sizes.append(out_size)
-
-        remove_handles = []
-        for _, m in mods:
-            handle = m.register_forward_hook(forward_hook)
-            remove_handles.append(handle)
-
         with torch.no_grad():
-            if isinstance(input_, (list, tuple)):  # pragma: no-cover
+            if isinstance(input_, (list, tuple)):
                 self.model(*input_)
             else:
                 self.model(input_)
 
-        # remove all the hooks we installed
-        for handle in remove_handles:
-            handle.remove()
-
-        self.in_sizes = in_sizes
-        self.out_sizes = out_sizes
-
-        print(in_sizes)
-        print(out_sizes)
-        assert len(in_sizes) == len(out_sizes)
-
     def _init_layer_summary(self) -> dict:
-        summary = dict()
+        summary = OrderedDict()
         for name, module in self.named_modules():
             summary.update({name: LayerSummary(module)})
         return summary
+
+    @property
+    def layer_names(self):
+        return list(self._summary.keys())
+
+    @property
+    def layer_types(self):
+        return [layer.layer_type for layer in self._summary.values()]
+
+    @property
+    def in_sizes(self):
+        return [layer.in_size for layer in self._summary.values()]
+
+    @property
+    def out_sizes(self):
+        return [layer.out_size for layer in self._summary.values()]
 
     def get_parameter_sizes(self) -> None:
         """ Get sizes of all parameters in `model`. """
@@ -180,8 +171,12 @@ class ModelSummary(object):
         self.make_summary()
 
 
-# def collect_tensor_sizes(data):
-#
+def parse_batch_size(batch: Any) -> List:
+    if hasattr(batch, 'shape'):
+        return list(batch.shape)
+
+    if isinstance(batch, (list, tuple)):
+        return [parse_batch_size(el) for el in batch]
 
 
 def _format_summary_table(*cols) -> str:
@@ -304,7 +299,6 @@ def get_gpu_memory_map() -> Dict[str, int]:
     gpu_memory = [int(x) for x in result.stdout.strip().split(os.linesep)]
     gpu_memory_map = {f'gpu_{index}': memory for index, memory in enumerate(gpu_memory)}
     return gpu_memory_map
-
 
 def get_human_readable_count(number: int) -> str:
     """
