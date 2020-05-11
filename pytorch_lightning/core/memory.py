@@ -2,7 +2,6 @@
 Generates a summary of a model's layers and dimensionality
 """
 
-import gc
 import os
 import subprocess
 from collections import OrderedDict
@@ -14,7 +13,6 @@ import torch
 from torch.nn import Module
 
 import pytorch_lightning as pl
-from pytorch_lightning import _logger as log
 
 
 class LayerSummary:
