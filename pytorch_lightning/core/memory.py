@@ -151,7 +151,8 @@ class ModelSummary(object):
 
         Layer Name, Layer Type, Number of Parameters, Input Sizes, Output Sizes
         """
-        arrays = [['Name', self.layer_names],
+        arrays = [[' ', list(map(str, range(len(self._layer_summary))))],
+                  ['Name', self.layer_names],
                   ['Type', self.layer_types],
                   ['Params', list(map(get_human_readable_count, self.param_nums))]]
         if self._model.example_input_array is not None:
@@ -164,15 +165,15 @@ class ModelSummary(object):
         return str(self)
 
 
-def parse_batch_shape(batch: Any) -> np.array:
+def parse_batch_shape(batch: Any) -> List:
     if hasattr(batch, 'shape'):
-        return np.array(batch.shape)
+        return list(batch.shape)
 
     if isinstance(batch, (list, tuple)):
-        return np.array([parse_batch_shape(el) for el in batch])
+        return [parse_batch_shape(el) for el in batch]
 
     # TODO: what do we show if type of input not recognized?
-    return np.array([])
+    return []
 
 
 def _format_summary_table(*cols) -> str:
@@ -184,38 +185,25 @@ def _format_summary_table(*cols) -> str:
     n_rows = len(cols[0][1])
     n_cols = 1 + len(cols)
 
-    # Layer counter
-    counter = list(map(str, list(range(n_rows))))
-    counter_len = max([len(c) for c in counter])
-
-    # Get formatting length of each column
-    length = []
+    # Get formatting width of each column
+    col_widths = []
     for c in cols:
-        str_l = len(c[0])  # default length is header length
-        for a in c[1]:
-            if isinstance(a, np.ndarray):
-                array_string = '[' + ', '.join([str(j) for j in a]) + ']'
-                str_l = max(len(array_string), str_l)
-            else:
-                str_l = max(len(a), str_l)
-        length.append(str_l)
+        col_width = max(len(str(a)) for a in c[1])
+        col_width = max(col_width, len(c[0]))  # minimum length is header length
+        col_widths.append(col_width)
 
     # Formatting
     s = '{:<{}}'
-    full_length = sum(length) + 3 * n_cols
-    header = [s.format(' ', counter_len)] + [s.format(c[0], l) for c, l in zip(cols, length)]
+    total_width = sum(col_widths) + 3 * n_cols
+    header = [s.format(c[0], l) for c, l in zip(cols, col_widths)]
 
     # Summary = header + divider + Rest of table
-    summary = ' | '.join(header) + '\n' + '-' * full_length
+    summary = ' | '.join(header) + '\n' + '-' * total_width
     for i in range(n_rows):
-        line = s.format(counter[i], counter_len)
-        for c, l in zip(cols, length):
-            if isinstance(c[1][i], np.ndarray):
-                array_string = '[' + ', '.join([str(j) for j in c[1][i]]) + ']'
-                line += ' | ' + array_string + ' ' * (l - len(array_string))
-            else:
-                line += ' | ' + s.format(c[1][i], l)
-        summary += '\n' + line
+        line = []
+        for c, l in zip(cols, col_widths):
+            line.append(s.format(str(c[1][i]), l))
+        summary += '\n' + ' | '.join(line)
 
     return summary
 
