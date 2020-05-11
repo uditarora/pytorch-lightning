@@ -1587,7 +1587,7 @@ class LightningModule(ABC, DeviceDtypeModuleMixin, GradInformation, ModelIO, Mod
 
     def summarize(self, mode: str) -> None:
         model_summary = ModelSummary(self, mode=mode)
-        log.info('\n' + model_summary.__str__())
+        log.info('\n' + str(model_summary))
 
     def freeze(self) -> None:
         r"""
