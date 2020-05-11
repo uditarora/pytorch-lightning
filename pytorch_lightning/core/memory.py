@@ -222,32 +222,6 @@ def _format_summary_table(*cols) -> str:
     return summary
 
 
-def print_mem_stack() -> None:
-    for obj in gc.get_objects():
-        try:
-            if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
-                log.info(type(obj), obj.size())
-        except Exception:
-            pass
-
-
-def count_mem_items() -> Tuple[int, int]:
-    num_params = 0
-    num_tensors = 0
-    for obj in gc.get_objects():
-        try:
-            if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
-                obj_type = str(type(obj))
-                if 'parameter' in obj_type:
-                    num_params += 1
-                else:
-                    num_tensors += 1
-        except Exception:
-            pass
-
-    return num_params, num_tensors
-
-
 def get_memory_profile(mode: str) -> Union[Dict[str, int], Dict[int, int]]:
     """ Get a profile of the current memory usage.
 
