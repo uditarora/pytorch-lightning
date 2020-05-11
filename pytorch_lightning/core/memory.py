@@ -27,6 +27,24 @@ class LayerSummary:
 
     The input and output shapes are only known after the example input array was
     passed through the model.
+
+    Example::
+
+        >>> model = torch.nn.Conv2d(3, 8, 3)
+        >>> summary = LayerSummary(model)
+        >>> summary.num_parameters
+        224
+        >>> summary.layer_type
+        'Conv2d'
+        >>> output = model(torch.rand(1, 3, 5, 5))
+        >>> summary.in_size
+        [1, 3, 5, 5]
+        >>> summary.out_size
+        [1, 8, 3, 3]
+
+    Args:
+        module: A module to summarize
+
     """
 
     def __init__(self, module: Module):
