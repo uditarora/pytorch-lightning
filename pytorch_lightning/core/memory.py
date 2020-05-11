@@ -109,11 +109,11 @@ class ModelSummary(object):
             summary.update({name: LayerSummary(module)})
 
         if self._model.example_input_array is not None:
-            self._get_variable_sizes()
+            self._forward_example_input()
 
         return summary
 
-    def _get_variable_sizes(self) -> None:
+    def _forward_example_input(self) -> None:
         """ Run sample input through each layer to get output sizes. """
 
         input_ = self._model.example_input_array
