@@ -1,7 +1,3 @@
-"""
-Generates a summary of a model's layers and dimensionality
-"""
-
 import os
 import subprocess
 from collections import OrderedDict
