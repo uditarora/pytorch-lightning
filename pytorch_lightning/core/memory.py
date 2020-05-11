@@ -51,8 +51,8 @@ class LayerSummary(object):
         super().__init__()
         self._module = module
         self._hook_handle = self._register_hook()
-        self.in_size = None
-        self.out_size = None
+        self._in_size = None
+        self._out_size = None
 
     def _register_hook(self):
         """
@@ -63,10 +63,18 @@ class LayerSummary(object):
         def hook(module, inp, out):
             if len(inp) == 1:
                 inp = inp[0]
-            self.in_size = parse_batch_shape(inp)
-            self.out_size = parse_batch_shape(out)
+            self._in_size = parse_batch_shape(inp)
+            self._out_size = parse_batch_shape(out)
             self._hook_handle.remove()  # hook detaches itself from module
         return self._module.register_forward_hook(hook)
+
+    @property
+    def in_size(self):
+        return self._in_size or 'unknown'
+
+    @property
+    def out_size(self):
+        return self._out_size or 'unknown'
 
     @property
     def layer_type(self) -> str:
