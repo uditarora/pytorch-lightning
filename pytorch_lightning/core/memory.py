@@ -15,7 +15,7 @@ from torch.nn import Module
 import pytorch_lightning as pl
 
 
-class LayerSummary:
+class LayerSummary(object):
     """
     Summary class for a single layer in a :class:`~pytorch_lightning.core.lightning.LightningModule`.
     It collects the following information:
