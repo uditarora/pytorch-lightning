@@ -19,7 +19,7 @@ from pytorch_lightning import _logger as log
 
 class LayerSummary:
     """
-    Summary class of a single layer in a :class:`~pytorch_lightning.core.lightning.LightningModule`.
+    Summary class for a single layer in a :class:`~pytorch_lightning.core.lightning.LightningModule`.
     It collects the following information:
 
     - Type of the layer (e.g. Linear, BatchNorm1d, ...)
@@ -84,23 +84,23 @@ class ModelSummary(object):
         return list(mods)
 
     @property
-    def layer_names(self):
+    def layer_names(self) -> List[str]:
         return list(self._layer_summary.keys())
 
     @property
-    def layer_types(self):
+    def layer_types(self) -> List[str]:
         return [layer.layer_type for layer in self._layer_summary.values()]
 
     @property
-    def in_sizes(self):
+    def in_sizes(self) -> List:
         return [layer.in_size for layer in self._layer_summary.values()]
 
     @property
-    def out_sizes(self):
+    def out_sizes(self) -> List:
         return [layer.out_size for layer in self._layer_summary.values()]
 
     @property
-    def param_nums(self):
+    def param_nums(self) -> List[int]:
         return [layer.num_parameters for layer in self._layer_summary.values()]
 
     def summarize(self) -> Dict[str, LayerSummary]:
