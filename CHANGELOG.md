@@ -102,6 +102,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 - Fixed `save_weights_only` in ModelCheckpoint ([#1780](https://github.com/PyTorchLightning/pytorch-lightning/pull/1780))
 
+- Fixed an issue that caused the model summary with `example_input_array` to only work with very limited model configurations ([#1773](https://github.com/PyTorchLightning/pytorch-lightning/pull/1773))
+
 ## [0.7.5] - 2020-04-27
 
 ### Changed
