@@ -101,7 +101,7 @@ class ModelSummary(object):
     If present, the root module will be called with it as input to determine the
     intermediate input- and output shapes of all layers. Supported are tensors and
     nested lists and tuples of tensors. All other types of inputs will be skipped and show as `unknown`
-    in the summary table.
+    in the summary table. The summary will also display `unknown` for layers not used in the forward pass.
 
     Example::
 

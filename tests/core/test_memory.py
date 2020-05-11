@@ -23,6 +23,7 @@ def test_model_summary_shapes():
             self.combine = nn.Linear(7, 9)
             self.layer1 = nn.Linear(3, 5)
             self.relu = nn.ReLU()
+            self.unused = nn.Conv2d(1, 1, 1)
 
             self.example_input_array = (torch.rand(2, 3), torch.rand(2, 10))
 
@@ -40,10 +41,12 @@ def test_model_summary_shapes():
         [2, 7],     # combine
         [2, 3],     # layer 1
         [2, 7],     # relu
+        'unknown'
     ]
     assert summary.out_sizes == [
         [2, 2],     # layer 2
         [2, 9],     # combine
         [2, 5],     # layer 1
-        [2, 7]      # relu
+        [2, 7],     # relu
+        'unknown'
     ]
