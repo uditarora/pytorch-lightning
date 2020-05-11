@@ -10,7 +10,7 @@ from typing import Tuple, Dict, Union, List, Any
 
 import numpy as np
 import torch
-from torch.nn import Module
+import torch.nn as nn
 
 import pytorch_lightning as pl
 
@@ -47,7 +47,7 @@ class LayerSummary(object):
 
     """
 
-    def __init__(self, module: Module):
+    def __init__(self, module: nn.Module):
         super().__init__()
         self._module = module
         self._hook_handle = self._register_hook()
@@ -88,15 +88,53 @@ class LayerSummary(object):
 
 
 class ModelSummary(object):
+    """
+    Generates a summary of all layers in a :class:`~pytorch_lightning.core.lightning.LightningModule`.
+
+    Args:
+        model: The model to summarize (also referred to as the root module)
+        mode: Can be one of
+
+             - `full` (default): summarizes all layers and their submodules in the root module
+             - `top`: Only the top-level modules will be recorded (the children of the root module)
+
+    The string representation of this summary prints a table with columns containing
+    the name, type and number of parameters for each layer.
+
+    The root module may also have an attribute ``example_input_array`` as shown in the example below.
+    If present, the root module will be called with it as input to determine the
+    intermediate input- and output shapes of all layers. Supported are tensors and
+    nested lists and tuples of tensors. All other types of inputs will be skipped and show as `unknown`
+    in the summary table.
+
+    Example::
+
+        >>> class LitModel(pl.LightningModule):
+        ...
+        ...     def __init__(self):
+        ...         super().__init__()
+        ...         self.net = nn.Sequential(nn.Linear(256, 512), nn.BatchNorm1d(512))
+        ...         self.example_input_array = torch.zeros(10, 256)  # optional
+        ...
+        ...     def forward(self, x):
+        ...         return self.net(x)
+        ...
+        >>> model = LitModel()
+        >>> ModelSummary(model)  # doctest: +NORMALIZE_WHITESPACE
+          | Name  | Type        | Params | In sizes  | Out sizes
+        --------------------------------------------------------------
+        0 | net   | Sequential  | 132 K  | [10, 256] | [10, 512]
+        1 | net.0 | Linear      | 131 K  | [10, 256] | [10, 512]
+        2 | net.1 | BatchNorm1d | 1 K    | [10, 512] | [10, 512]
+    """
 
     def __init__(self, model: 'pl.LightningModule', mode: str = 'full'):
-        """ Generates summaries of model layers and dimensions. """
         self._model = model
         self._mode = mode
         self._layer_summary = self.summarize()
 
     @property
-    def named_modules(self) -> List[Tuple[str, Module]]:
+    def named_modules(self) -> List[Tuple[str, nn.Module]]:
         if self._mode == 'full':
             mods = self._model.named_modules()
             mods = list(mods)[1:]  # do not include root module (LightningModule)
@@ -138,7 +176,7 @@ class ModelSummary(object):
         return summary
 
     def _forward_example_input(self) -> None:
-        """ Run sample input through each layer to get output sizes. """
+        """ Run the example input through each layer to get input- and output sizes. """
 
         input_ = self._model.example_input_array
 
@@ -156,7 +194,7 @@ class ModelSummary(object):
         # if model.trainer.use_amp and self.use_native_amp:
         #     model.forward = torch.cuda.amp.autocast()(model.forward)
 
-        if self._model.trainer.use_amp:
+        if self._model.trainer is not None and self._model.trainer.use_amp:
             # test if it is not a list or a tuple
             if isinstance(input_, (list, tuple)):
                 input_ = [input_i.half() if torch.is_tensor(input_i) else input_i
