@@ -47,8 +47,8 @@ class LayerSummary:
         def hook(module, inp, out):
             if len(inp) == 1:
                 inp = inp[0]
-            self.in_size = parse_batch_size(inp)
-            self.out_size = parse_batch_size(out)
+            self.in_size = parse_batch_shape(inp)
+            self.out_size = parse_batch_shape(out)
             self._hook_handle.remove()  # hook detaches itself from module
         return self._module.register_forward_hook(hook)
 
@@ -166,12 +166,12 @@ class ModelSummary(object):
         return str(self)
 
 
-def parse_batch_size(batch: Any) -> np.array:
+def parse_batch_shape(batch: Any) -> np.array:
     if hasattr(batch, 'shape'):
         return np.array(batch.shape)
 
     if isinstance(batch, (list, tuple)):
-        return np.array([parse_batch_size(el) for el in batch])
+        return np.array([parse_batch_shape(el) for el in batch])
 
     # TODO: what do we show if type of input not recognized?
     return np.array([])
