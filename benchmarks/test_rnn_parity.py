@@ -31,6 +31,7 @@ class ParityRNN(LightningModule):
         super(ParityRNN, self).__init__()
         self.rnn = nn.LSTM(10, 20, batch_first=True)
         self.linear_out = nn.Linear(in_features=20, out_features=5)
+        self.example_input_array = torch.zeros(1, 5, 10)
 
     def forward(self, x):
         seq, last = self.rnn(x)
