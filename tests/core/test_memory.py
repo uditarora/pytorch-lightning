@@ -72,7 +72,3 @@ def test_rnn_summary_shapes():
         [[b, t, h], [[1, b, h], [1, b, h]]],    # rnn
         [b, t, o]                               # linear
     ]
-
-
-if __name__ == '__main__':
-    test_rnn_summary_shapes()
