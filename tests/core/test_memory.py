@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import pytest
 
 from pytorch_lightning import Trainer, LightningModule
 from pytorch_lightning.core.memory import ModelSummary
@@ -11,7 +12,13 @@ from benchmarks.test_rnn_parity import ParityRNN
 # Device (CPU, GPU, amp)
 # Different input shapes (tensor, nested lists, nested tuples, unknowns)
 
-def test_linear_model_summary_shapes():
+
+@pytest.mark.parametrize('device', [
+    torch.device('cpu'),
+    torch.device('cuda', 0)
+])
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="Test requires GPU.")
+def test_linear_model_summary_shapes(device):
     """ Test that the model summary correctly computes the input- and output shapes. """
 
     class CurrentModel(LightningModule):
@@ -34,7 +41,8 @@ def test_linear_model_summary_shapes():
             out = self.combine(out)
             return out
 
-    model = CurrentModel()
+    model = CurrentModel().to(device)
+    model.train()
     summary = ModelSummary(model)
     assert summary.in_sizes == [
         [2, 10],    # layer 2
@@ -50,6 +58,7 @@ def test_linear_model_summary_shapes():
         [2, 7],     # relu
         'unknown'
     ]
+    assert model.training
 
 
 def test_rnn_summary_shapes():
