@@ -198,12 +198,15 @@ class ModelSummary(object):
             else:
                 input_ = input_.half()
 
+        mode = self._model.training
+        self._model.eval()
         with torch.no_grad():
             # let the model hooks collect the input- and output shapes
             if isinstance(input_, (list, tuple)):
                 self._model(*input_)
             else:
                 self._model(input_)
+        self._model.train(mode)  # restore mode of module
 
     def __str__(self):
         """
