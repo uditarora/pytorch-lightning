@@ -61,8 +61,13 @@ def test_linear_model_summary_shapes(device):
     assert model.training
 
 
-def test_rnn_summary_shapes():
-    model = ParityRNN()
+@pytest.mark.parametrize('device', [
+    torch.device('cpu'),
+    torch.device('cuda', 0)
+])
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="Test requires GPU.")
+def test_rnn_summary_shapes(device):
+    model = ParityRNN().to(device)
 
     b = 3
     t = 5
