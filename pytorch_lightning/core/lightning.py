@@ -22,7 +22,6 @@ from pytorch_lightning.utilities.device_dtype_mixin import DeviceDtypeModuleMixi
 from pytorch_lightning.overrides.data_parallel import LightningDistributedDataParallel
 from pytorch_lightning.utilities.exceptions import MisconfigurationException
 from pytorch_lightning.utilities import rank_zero_warn
-from pytorch_lightning.utilities import transfer_data_to_device
 try:
     import torch_xla.core.xla_model as xm
 except ImportError:
