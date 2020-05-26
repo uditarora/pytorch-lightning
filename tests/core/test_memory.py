@@ -103,3 +103,27 @@ def test_rnn_summary_shapes():
         [[b, t, h], [[1, b, h], [1, b, h]]],    # rnn
         [b, t, o]                               # linear
     ]
+
+
+def test_summary_parameter_count():
+    model = UnorderedModel()
+    summary = model.summarize()
+    assert summary.param_nums == [
+        model.layer2.weight.numel() + model.layer2.bias.numel(),
+        model.combine.weight.numel() + model.combine.bias.numel(),
+        model.layer1.weight.numel() + model.layer1.bias.numel(),
+        0,  # ReLU
+        model.unused.weight.numel() + model.unused.bias.numel(),
+    ]
+
+
+def test_summary_layer_types():
+    model = UnorderedModel()
+    summary = model.summarize()
+    assert summary.layer_types == [
+        'Linear',
+        'Linear',
+        'Linear',
+        'ReLU',
+        'Conv2d',
+    ]
