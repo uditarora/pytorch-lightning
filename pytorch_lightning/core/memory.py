@@ -11,6 +11,9 @@ import torch.nn as nn
 import pytorch_lightning as pl
 
 
+UNKNOWN_SIZE = 'unknown'
+
+
 class LayerSummary(object):
     """
     Summary class for a single layer in a :class:`~pytorch_lightning.core.lightning.LightningModule`.
@@ -66,11 +69,11 @@ class LayerSummary(object):
 
     @property
     def in_size(self):
-        return self._in_size or 'unknown'
+        return self._in_size or UNKNOWN_SIZE
 
     @property
     def out_size(self):
-        return self._out_size or 'unknown'
+        return self._out_size or UNKNOWN_SIZE
 
     @property
     def layer_type(self) -> str:
