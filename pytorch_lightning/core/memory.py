@@ -244,7 +244,7 @@ def _format_summary_table(*cols) -> str:
     # Get formatting width of each column
     col_widths = []
     for c in cols:
-        col_width = max(len(str(a)) for a in c[1])
+        col_width = max(len(str(a)) for a in c[1]) if n_rows else 0
         col_width = max(col_width, len(c[0]))  # minimum length is header length
         col_widths.append(col_width)
 
