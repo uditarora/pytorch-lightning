@@ -8,42 +8,62 @@ from benchmarks.test_rnn_parity import ParityRNN
 
 
 # TODO:
-# Empty LightningModule (no layers)
-# Device (CPU, GPU, amp)
 # Different input shapes (tensor, nested lists, nested tuples, unknowns)
 
+class EmptyModule(LightningModule):
+    """ A module that has no layers """
 
-@pytest.mark.parametrize('device', [
-    torch.device('cpu'),
-    torch.device('cuda', 0)
+    def __init__(self):
+        super().__init__()
+        self.parameter = torch.rand(3, 3, requires_grad=True)
+        self.example_input_array = torch.zeros(1, 2, 3, 4, 5)
+
+    def forward(self, *args, **kwargs):
+        return {'loss': self.parameter.sum()}
+
+
+class UnorderedModel(LightningModule):
+    """ A model in which the layers not defined in order of execution """
+
+    def __init__(self):
+        super().__init__()
+        # note: the definition order is intentionally scrambled for this test
+        self.layer2 = nn.Linear(10, 2)
+        self.combine = nn.Linear(7, 9)
+        self.layer1 = nn.Linear(3, 5)
+        self.relu = nn.ReLU()
+        # this layer is unused, therefore input-/output shapes are unknown
+        self.unused = nn.Conv2d(1, 1, 1)
+
+        self.example_input_array = (torch.rand(2, 3), torch.rand(2, 10))
+
+    def forward(self, x, y):
+        out1 = self.layer1(x)
+        out2 = self.layer2(y)
+        out = self.relu(torch.cat((out1, out2), 1))
+        out = self.combine(out)
+        return out
+
+
+def test_empty_model_summary_shapes():
+    model = EmptyModule()
+    summary = model.summarize()
+    assert summary.in_sizes == []
+    assert summary.out_sizes == []
+    assert summary.param_nums == []
+
+
+@pytest.mark.parametrize(['device', 'dtype'], [
+    pytest.param(torch.device('cpu'), torch.double),
+    pytest.param(torch.device('cuda', 0), torch.float),
+    pytest.param(torch.device('cuda', 0), torch.float16),
 ])
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="Test requires GPU.")
-def test_linear_model_summary_shapes(device):
+def test_linear_model_summary_shapes(device, dtype):
     """ Test that the model summary correctly computes the input- and output shapes. """
-
-    class CurrentModel(LightningModule):
-
-        def __init__(self):
-            super().__init__()
-            # note: the definition order is intentionally scrambled for this test
-            self.layer2 = nn.Linear(10, 2)
-            self.combine = nn.Linear(7, 9)
-            self.layer1 = nn.Linear(3, 5)
-            self.relu = nn.ReLU()
-            self.unused = nn.Conv2d(1, 1, 1)
-
-            self.example_input_array = (torch.rand(2, 3), torch.rand(2, 10))
-
-        def forward(self, x, y):
-            out1 = self.layer1(x)
-            out2 = self.layer2(y)
-            out = self.relu(torch.cat((out1, out2), 1))
-            out = self.combine(out)
-            return out
-
-    model = CurrentModel().to(device)
+    model = UnorderedModel().type(dtype).to(device)
     model.train()
-    summary = ModelSummary(model)
+    summary = model.summarize()
     assert summary.in_sizes == [
         [2, 10],    # layer 2
         [2, 7],     # combine
@@ -59,15 +79,12 @@ def test_linear_model_summary_shapes(device):
         'unknown'
     ]
     assert model.training
+    assert model.dtype == dtype
+    assert model.device == device
 
 
-@pytest.mark.parametrize('device', [
-    torch.device('cpu'),
-    torch.device('cuda', 0)
-])
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="Test requires GPU.")
-def test_rnn_summary_shapes(device):
-    model = ParityRNN().to(device)
+def test_rnn_summary_shapes():
+    model = ParityRNN()
 
     b = 3
     t = 5
@@ -77,7 +94,7 @@ def test_rnn_summary_shapes(device):
 
     model.example_input_array = torch.zeros(b, t, 10)
 
-    summary = ModelSummary(model)
+    summary = model.summarize()
     assert summary.in_sizes == [
         [b, t, i],  # rnn
         [b, t, h],  # linear
