@@ -156,7 +156,7 @@ from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.utilities.exceptions import MisconfigurationException
 from pytorch_lightning.trainer.supporters import TensorRunningAccum
 from pytorch_lightning.utilities import rank_zero_warn
-from pytorch_lightning.core.step_result import EvalStepResult, TrainStepResult
+from pytorch_lightning.core.step_result import Result
 
 try:
     from apex import amp
@@ -552,20 +552,18 @@ class TrainerTrainLoopMixin(ABC):
 
                 # wrap the forward step in a closure so second order methods work
                 def optimizer_closure():
-                    step_result = TrainStepResult()
-
                     # forward pass
                     with self.profiler.profile('model_forward'):
                         if self.use_amp and self.use_native_amp:
                             with torch.cuda.amp.autocast():
                                 output = self.training_forward(split_batch, batch_idx,
-                                                                    opt_idx, self.hiddens, step_result)
+                                                                    opt_idx, self.hiddens)
                         else:
                             output = self.training_forward(split_batch, batch_idx, opt_idx,
-                                                                self.hiddens, step_result)
+                                                                self.hiddens)
 
                         # format and reduce outputs accordingly
-                        if isinstance(output, TrainStepResult):
+                        if isinstance(output, Result):
                             processed_output = self.process_step_result(output, train=True)
                         else:
                             processed_output = self.process_output(output, train=True)
@@ -683,7 +681,7 @@ class TrainerTrainLoopMixin(ABC):
         # summarize profile results
         self.profiler.describe()
 
-    def training_forward(self, batch, batch_idx, opt_idx, hiddens, step_result):
+    def training_forward(self, batch, batch_idx, opt_idx, hiddens):
         """
         Handle forward for each training case (distributed, single gpu, etc...)
         :param batch:
