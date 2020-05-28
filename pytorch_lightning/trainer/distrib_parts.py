@@ -346,6 +346,7 @@ import torch
 from typing import Union, Callable, Any, Optional
 
 from pytorch_lightning import _logger as log
+from pytorch_lightning.core.lightning import LightningModule
 from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.overrides.data_parallel import (
     LightningDistributedDataParallel,
@@ -473,7 +474,7 @@ class TrainerDPMixin(ABC):
         return self.__transfer_batch_to_device(batch, device)
 
     def __transfer_batch_to_device(self, batch: Any, device: torch.device):
-        if self.is_overridden('transfer_batch_to_device'):
+        if self.is_overridden(LightningModule.transfer_batch_to_device.__name__):
             # user-override for custom batch types
             return self.get_model().transfer_batch_to_device(batch, device)
         return transfer_batch_to_device(batch, device)
