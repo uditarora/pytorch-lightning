@@ -43,6 +43,7 @@ class UnorderedModel(LightningModule):
 
 
 def test_empty_model_summary_shapes():
+    """ Test that the summary works for models that have no submodules. """
     model = EmptyModule()
     summary = model.summarize()
     assert summary.in_sizes == []
@@ -81,6 +82,7 @@ def test_linear_model_summary_shapes(device, dtype):
 
 
 def test_rnn_summary_shapes():
+    """ Test that the model summary works for RNNs. """
     model = ParityRNN()
 
     b = 3
@@ -103,6 +105,7 @@ def test_rnn_summary_shapes():
 
 
 def test_summary_parameter_count():
+    """ Test that the summary counts the number of parameters in every submodule. """
     model = UnorderedModel()
     summary = model.summarize()
     assert summary.param_nums == [
@@ -115,6 +118,7 @@ def test_summary_parameter_count():
 
 
 def test_summary_layer_types():
+    """ Test that the summary displays the layer names correctly. """
     model = UnorderedModel()
     summary = model.summarize()
     assert summary.layer_types == [
