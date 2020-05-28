@@ -12,7 +12,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.utilities import transfer_batch_to_device
 from pytorch_lightning.utilities.apply_func import apply_to_collection
 
-UNKNOWN_SIZE = 'unknown'
+UNKNOWN_SIZE = '?'
 
 
 class LayerSummary(object):
@@ -106,8 +106,8 @@ class ModelSummary(object):
     The root module may also have an attribute ``example_input_array`` as shown in the example below.
     If present, the root module will be called with it as input to determine the
     intermediate input- and output shapes of all layers. Supported are tensors and
-    nested lists and tuples of tensors. All other types of inputs will be skipped and show as `unknown`
-    in the summary table. The summary will also display `unknown` for layers not used in the forward pass.
+    nested lists and tuples of tensors. All other types of inputs will be skipped and show as `?`
+    in the summary table. The summary will also display `?` for layers not used in the forward pass.
 
     Example::
 
@@ -219,15 +219,15 @@ class ModelSummary(object):
         return str(self)
 
 
-def parse_batch_shape(batch: Any) -> List:
+def parse_batch_shape(batch: Any) -> Union[str, List]:
     if hasattr(batch, 'shape'):
         return list(batch.shape)
 
     if isinstance(batch, (list, tuple)):
-        return [parse_batch_shape(el) for el in batch]
+        shape = [parse_batch_shape(el) for el in batch]
+        return shape
 
-    # TODO: what do we show if type of input not recognized?
-    return []
+    return UNKNOWN_SIZE
 
 
 def _format_summary_table(*cols) -> str:

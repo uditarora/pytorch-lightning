@@ -1,14 +1,11 @@
+import pytest
 import torch
 import torch.nn as nn
-import pytest
 
-from pytorch_lightning import Trainer, LightningModule
-from pytorch_lightning.core.memory import ModelSummary
 from benchmarks.test_rnn_parity import ParityRNN
+from pytorch_lightning import LightningModule
+from pytorch_lightning.core.memory import UNKNOWN_SIZE
 
-
-# TODO:
-# Different input shapes (tensor, nested lists, nested tuples, unknowns)
 
 class EmptyModule(LightningModule):
     """ A module that has no layers """
@@ -69,14 +66,14 @@ def test_linear_model_summary_shapes(device, dtype):
         [2, 7],     # combine
         [2, 3],     # layer 1
         [2, 7],     # relu
-        'unknown'
+        UNKNOWN_SIZE,
     ]
     assert summary.out_sizes == [
         [2, 2],     # layer 2
         [2, 9],     # combine
         [2, 5],     # layer 1
         [2, 7],     # relu
-        'unknown'
+        UNKNOWN_SIZE,
     ]
     assert model.training
     assert model.dtype == dtype
@@ -127,3 +124,34 @@ def test_summary_layer_types():
         'ReLU',
         'Conv2d',
     ]
+
+
+@pytest.mark.parametrize(['example_input', 'expected_size'], [
+    pytest.param([], UNKNOWN_SIZE),
+    pytest.param((1, 2, 3), [UNKNOWN_SIZE] * 3),
+    pytest.param(torch.tensor(0), UNKNOWN_SIZE),
+    pytest.param(dict(tensor=torch.zeros(1, 2, 3)), UNKNOWN_SIZE),
+    pytest.param(torch.zeros(2, 3, 4), [2, 3, 4]),
+    pytest.param([torch.zeros(2, 3), torch.zeros(4, 5)], [[2, 3], [4, 5]]),
+    pytest.param((torch.zeros(2, 3), torch.zeros(4, 5)), [[2, 3], [4, 5]]),
+])
+def test_example_input_array_types(example_input, expected_size):
+    """ Test the types of example inputs supported for display in the summary. """
+    class DummyModule(nn.Module):
+        def forward(self, *args, **kwargs):
+            return None
+
+    class DummyLightningModule(LightningModule):
+
+        def __init__(self):
+            super().__init__()
+            self.layer = DummyModule()
+
+        # this LightningModule and submodule accept any type of input
+        def forward(self, *args, **kwargs):
+            return self.layer(*args, **kwargs)
+
+    model = DummyLightningModule()
+    model.example_input_array = example_input
+    summary = model.summarize()
+    assert summary.in_sizes == [expected_size]
