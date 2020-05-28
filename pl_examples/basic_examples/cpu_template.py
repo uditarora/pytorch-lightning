@@ -23,7 +23,8 @@ def main(hparams):
     # ------------------------
     # 1 INIT LIGHTNING MODEL
     # ------------------------
-    model = LightningTemplateModel(hparams)
+    options = vars(hparams)
+    model = LightningTemplateModel(**options)
 
     # ------------------------
     # 2 INIT TRAINER
