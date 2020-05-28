@@ -168,13 +168,9 @@ class ModelSummary(object):
         return [layer.num_parameters for layer in self._layer_summary.values()]
 
     def summarize(self) -> Dict[str, LayerSummary]:
-        summary = OrderedDict()
-        for name, module in self.named_modules:
-            summary.update({name: LayerSummary(module)})
-
+        summary = OrderedDict((name, LayerSummary(module)) for name, module in self.named_modules)
         if self._model.example_input_array is not None:
             self._forward_example_input()
-
         return summary
 
     def _forward_example_input(self) -> None:
@@ -197,6 +193,8 @@ class ModelSummary(object):
             # let the model hooks collect the input- and output shapes
             if isinstance(input_, (list, tuple)):
                 model(*input_)
+            elif isinstance(input_, dict):
+                model(**input_)
             else:
                 model(input_)
         model.train(mode)  # restore mode of module
