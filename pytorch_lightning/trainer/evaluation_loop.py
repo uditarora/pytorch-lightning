@@ -222,7 +222,8 @@ class TrainerEvaluationLoopMixin(ABC):
         """Warning: this is just empty shell for code implemented in other class."""
 
     def _evaluate(self, model: LightningModule, dataloaders, max_batches: int, test_mode: bool = False):
-        """Run evaluation code.
+        """
+        Runs full evalutation (test or validation) on all the dataloaders
 
         Args:
             model: PT model
@@ -230,31 +231,34 @@ class TrainerEvaluationLoopMixin(ABC):
             max_batches: Scalar
             test_mode:
         """
-        # enable eval mode
-        # TODO: apply new return policy
-
-        model.zero_grad()
-        model.eval()
-
         # copy properties for forward overrides
         self.copy_trainer_model_properties(model)
 
-        # disable gradients to save memory
+        # ----------------------------------
+        # disable grads BN, DO ... for eval
+        # ----------------------------------
+        model.zero_grad()
+        model.eval()
         torch.set_grad_enabled(False)
 
-        # bookkeeping
-        eval_step_outputs = []
-
-        # run validation
+        # ----------------------------------
+        # validation for each dataloader
+        # ----------------------------------
+        all_dataloader_outputs = []
         for dataloader_idx, dataloader in enumerate(dataloaders):
-            dl_outputs = []
 
-            # on TPU we have to wrap it under the ParallelLoader
+            # ----------------------------------
+            # configure dataloader for TPU
+            # ----------------------------------
             if self.use_tpu and self.tpu_id is None:
                 device = xm.xla_device()
                 dataloader = xla_pl.ParallelLoader(dataloader, [device])
                 dataloader = dataloader.per_device_loader(device)
 
+            # ----------------------------------
+            # run a loop through each dataloader
+            # ----------------------------------
+            dataloader_outputs = []
             for batch_idx, batch in enumerate(dataloader):
                 # ignore null batches
                 if batch is None:
@@ -265,9 +269,13 @@ class TrainerEvaluationLoopMixin(ABC):
                     break
 
                 # run the dataloader step
-                self._dataloader_eval_step()
+                eval_step_output = self._dataloader_eval_step(model, batch, batch_idx, dataloader_idx, test_mode)
+                dataloader_outputs.append(eval_step_output)
 
-            eval_step_outputs.append(dl_outputs)
+            # ----------------------------------
+            # track to merge all the dataloader outputs
+            # ----------------------------------
+            all_dataloader_outputs.append(dataloader_outputs)
 
         eval_results = {}
 
