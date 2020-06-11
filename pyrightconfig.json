@@ -28,5 +28,6 @@
     "pytorch_lightning/trainer/training_tricks.py"
   ],
 
-  "reportMissingImports": true
+  "reportMissingImports": true,
+  "reportMissingTypeStubs": false
 }
